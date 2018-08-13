@@ -1,0 +1,215 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Hello World</title>
+  <script src="pixi-4.7.1.min.js"></script>
+  <style>html,body {padding: 0; margin: 0}</style>
+</head>
+
+<body>
+<script type="text/javascript">
+let {Text, TextStyle, Container} = PIXI
+let type = "WebGL"
+if(!PIXI.utils.isWebGLSupported()){
+  type = "canvas"
+}
+PIXI.utils.sayHello(type)
+let styleMaybe, styleWrong
+{
+		let common = {
+			fontFamily: "Arial",
+			fontSize: 36,
+			fill: "white",
+			stroke: '#333',
+			strokeThickness: 4,
+			dropShadow: true,
+			dropShadowColor: "#000000",
+			dropShadowBlur: 4,
+			dropShadowAngle: Math.PI / 6,
+			dropShadowDistance: 6,
+		}
+		styleMaybe = new TextStyle(common)
+		styleWrong = new TextStyle({...common,fill:"#999",stroke:'#900'})
+	}
+let app = new PIXI.Application({
+		width: 978,
+		height: 800
+	})
+app.renderer.backgroundColor = 0xa6a6d9;
+app.renderer.view.style.position = "absolute";
+app.renderer.view.style.display = "block"
+app.renderer.autoResize = true
+app.renderer.resize(window.innerWidth, window.innerHeight);
+//app.ticker.add(gameLoop)
+
+let state ={
+		scene:'intro',
+		battle:{
+				challenge:[{script:"He-",phon:"Je"},{script:"-llo",phon:"-lou"}]
+				activeRound:[]
+				queuedRound:[]
+				challengeProgress:[{script:"",phon:""}]
+			}
+	}
+let scenes = {}
+let syllableData = {
+		//https://gist.github.com/gartenfeld/597d2d8e750d4748115da02784a9eb8e
+		...{"ðə":{},"ə":{},"ˈtu":{},"ˈænd":{},"ˈʌv":{},"ɪn":{},"li":{},"ˈðæt":{},"ˈaɪ":{},"ˈfɔr":{},"ʃən":{},"ˈɪt":{},"ˈɪz":{},"ri":{},"ˈju":{},"tər":{},"ˈhi":{},"ˈwɑz":{},"ˈɑn":{},"ˈwɪð":{},"ˈɛ":{},"vər":{},"dɪ":{},"ˈæz":{},"ɪŋ":{},"bɪ":{},"tə":{},"ˈðɛr":{},"ˈbi":{},"ˈɑr":{},"ər":{},"ti":{},"sə":{},"kən":{},"rə":{},"lə":{},"ni":{},"ˈæt":{},"nə":{},"rɪ":{}},
+		"^":{//Start marker
+				followers:[]
+			}
+		"hə":{
+				approx:{
+						"en":"heh",
+						"es":"je"
+					},
+				followers:["ləʊ","zɪ",]
+			},
+		"ləʊ":{
+				approx:{
+						"en":"low",
+						"es":"lou"
+					}
+			},
+		"zɪ":{
+				approx:{
+						"en":"zi",
+						"es":"zɪ"
+					}
+				followers:["teɪt","teɪ"]
+			},
+
+	}
+let syllables = Object.keys(syllableData)
+
+let segmentData = {
+		"Hello":{
+				prompt:{
+					es:"Hola",
+					fr:"Bonjour"
+				},
+				syllables:["hə","ləʊ"]
+			}
+		"Hesitate":{
+			prompt:{
+				es:""
+			},
+		}
+	}
+
+
+setup()
+function setup(){
+		{let scene = scenes.intro = new  Container()
+				let instructionsTx = new Text("Hit enter to start a battle!")
+				scene.addChild(instructionsTx)
+				app.stage.addChild(scene)
+			}
+		{let scene = scenes.battle = new Container()
+				scene.visible = false
+				let instructionsTx = new Text("Let's battle!")
+					scene.addChild(instructionsTx)
+				let queue = scene.queue = new Container()
+					queue.x = 30
+					queue.y = 20
+					scene.addChild(queue)
+				let track = scene.track = new Container()
+					track.x = 30
+					track.y = 60
+					scene.addChild(track)
+				let goal = scene.goal = new Container ()
+					goal.x = 30
+					goal.y = 700
+					scene.addChild(goal)
+				app.stage.addChild(scene)
+			}
+
+		//TODO make left-handed version with 123X
+		let enter = keyListeners(13)
+		let key1 = keyListeners(77) //m
+		let key2 = keyListeners(56) //8
+		let key3 = keyListeners(57) //9
+		let key4 = keyListeners(48) //0
+
+		enter.press = () => state.scene=='intro' && battleStart()
+		//key1.press = () =>
+
+		document.body.appendChild(app.view)
+	}
+
+function battleStart (){
+		let rounds : [
+			{position:15,options:[{script:"He-",phon:"Je",state:"tgt"},{script:"So-",phon:"So",state:"hid"}]},
+			{position:0,options:[{script:"-rry",phon:"rri",state:"hid"},{script:"-llo",phon:"lou",state:"tgt"}]}
+		]
+		state.scene = 'battle'
+		scenes.intro.visible = false
+		scenes.battle.visible = true
+
+		let roundCo = new  Container()
+		let r
+		for(r=0;r<rounds.length;r++){if(rounds[r].position>0 & rounds[r].position < 100){break;}}
+		if(rounds[r]){ //Put this in the track
+				console.log("track",r)
+				let options = rounds[r].options
+				for(let o=0;o<options.length;o++){
+						let option = options[o]
+						let optionTx = new Text(option.script, option.state=="not"?styleWrong:styleMaybe)
+						optionTx.y = 0
+						optionTx.x = 30+ o*120
+						scenes.battle.track.addChild(optionTx)
+					}
+			}
+		if(rounds[r+1]){//Put this in the queue
+				console.log("queue",r+1)
+				let options = rounds[r+1].options
+				for(let o=0;o<options.length;o++){
+						let option = options[o]
+						let optionTx = new Text(option.script, option.state=="not"?styleWrong:styleMaybe)
+						optionTx.y = 0
+						optionTx.x = 30+ o*120
+						scenes.battle.queue.addChild(optionTx)
+					}
+			}
+	}
+function gameLoop(delta){
+
+
+	}
+
+function keyListeners(keyCode) { //As suggested in https://github.com/kittykatattack/learningPixi#keyboard
+		let key = {}
+		key.code = keyCode
+		key.isDown = false
+		key.isUp = true
+		key.press = undefined
+		key.release = undefined
+		//The `downHandler`
+		key.downHandler = event => {
+				if (event.keyCode === key.code) {
+						event.preventDefault()
+						if (key.isUp && key.press){key.press()}
+						key.isDown = true
+						key.isUp = false
+					}
+			}
+
+		//The `upHandler`
+		key.upHandler = event => {
+				if (event.keyCode === key.code) {
+						if (key.isDown && key.release) key.release();
+						key.isDown = false
+						key.isUp = true
+						event.preventDefault()
+					}
+			}
+
+		//Attach event listeners
+		window.addEventListener("keydown", key.downHandler.bind(key), false)
+		window.addEventListener("keyup", key.upHandler.bind(key), false)
+		return key
+	}
+</script>
+</body>
+</html>

@@ -1,0 +1,55 @@
+<!doctype HTML>
+<html>
+<head><title>Entendre</title></head>
+<body><div id="app"></div></body>
+<style>
+html {background: linear-gradient(to bottom, #314 0%,#111 43%,#414 100%); min-height: 100vh; background-position: fixed; color:white}
+#app{ min-width: 400px; width:80%; margin: 0 auto 0 auto; display: block; }
+#commands{margin:0.5em 0}
+#track{position:relative;top:0;left:0}
+.round{position:absolute;height:5px;border:1px;}
+.option{position:absolute;top:0;width:8em;}
+.option.state-tgt{color:#fff;}
+.option.state-hid{color:#fff;}
+.option.state-not{color:#99A;}
+</style>
+<script src="/hyperapp-1.2.5.js" integrity="sha256-EO1vRmcxDsotgvYvFuhhr9KbV3zX4a0uop87FBqNVwo=" crossorigin="anonymous"></script>
+<!--<script src="/static/fdaciuk-ajax-2.3.0.js" integrity="sha256-deVpz2KQ8L5xlUTHVQHLUVZsNGJEJY7ChjnVFeIaPgU=" crossorigin="anonymous"></script>
+Only need ajex, but had to switch to full jquery due to https://github.com/fdaciuk/ajax/issues/20
+-->
+<!--<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.3.1/jquery.min.js" integrity="sha256-FgpCb/KJQlLNfOu91ta32o/NMZxltwRo8QtmkMRdAu8=" crossorigin="anonymous"></script>
+-->
+<script>
+const {h,app} = hyperapp
+
+const state = {
+		nativeLang:"es",
+		challengeLang:"en",
+		challengePool:[],
+		challenge:"Hola",
+		challengeRounds:[
+			{position:15,options:[{script:"He-",phon:"Je",state:"tgt"},{script:"So-",phon:"So",state:"hid"}]},
+			{position:0,options:[{script:"-rry",phon:"rri",state:"hid"},{script:"-llo",phon:"lou",state:"tgt"}]}
+		]
+	}
+const view = (s,a) =>
+h("div",{id:"app"},[
+	h("div",{id:"commands"},[
+		h("button",{onclick:()=>a.reset()},"Reset")
+	]),
+	h("div",{id:"track"},s.challengeRounds.map(tgt=>
+		h("div",{class:"round",style:{top:(tgt.position*5)+"px"}},tgt.options.map((opt,o)=>
+			h("span",{class:"option state-"+opt.state,style:{left:(o*100)+"px"}},opt.script)
+		))
+	))
+])
+const actions = {
+	reset: v => s => state,
+	tick: v => s => ({
+		challengeRounds:challengeRounds.map((round,r,arr)=>({
+				..round, position:round.position>0?
+			})
+	})
+}
+const run = app(state,actions,view,document.body)
+</script>
