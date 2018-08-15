@@ -9,12 +9,13 @@
 
 <body>
 <script type="text/javascript">
-let {Text, TextStyle, Container} = PIXI
-let type = "WebGL"
-if(!PIXI.utils.isWebGLSupported()){
-  type = "canvas"
-}
-PIXI.utils.sayHello(type)
+Array.prototype.rand = function(r = Math.random){return this[parseInt(r()*this.length)];}
+
+const {Text, TextStyle, Container} = PIXI
+
+PIXI.utils.sayHello("WebGL support: "+ PIXI.utils.isWebGLSupported())
+
+const YES='y',MAYBE='m',NO='n', roundSpeedInSeconds = 6.0, nominalFPS = 60.0
 let styleMaybe, styleWrong
 {
 		let common = {
@@ -22,6 +23,7 @@ let styleMaybe, styleWrong
 			fontSize: 36,
 			fill: "white",
 			stroke: '#333',
+
 			strokeThickness: 4,
 			dropShadow: true,
 			dropShadowColor: "#000000",
@@ -32,7 +34,7 @@ let styleMaybe, styleWrong
 		styleMaybe = new TextStyle(common)
 		styleWrong = new TextStyle({...common,fill:"#999",stroke:'#900'})
 	}
-let app = new PIXI.Application({
+const app = new PIXI.Application({
 		width: 978,
 		height: 800
 	})
@@ -43,8 +45,9 @@ app.renderer.autoResize = true
 app.renderer.resize(window.innerWidth, window.innerHeight);
 //app.ticker.add(gameLoop)
 
-let state ={
+const state = {
 		scene:'intro',
+		promptLang:"es",
 		battle:{
 				challenge:[{script:"He-",phon:"Je"},{script:"-llo",phon:"-lou"}]
 				activeRound:[]
@@ -52,52 +55,61 @@ let state ={
 				challengeProgress:[{script:"",phon:""}]
 			}
 	}
-let scenes = {}
-let syllableData = {
+const scenes = {}
+const syllables = [
 		//https://gist.github.com/gartenfeld/597d2d8e750d4748115da02784a9eb8e
-		...{"ðə":{},"ə":{},"ˈtu":{},"ˈænd":{},"ˈʌv":{},"ɪn":{},"li":{},"ˈðæt":{},"ˈaɪ":{},"ˈfɔr":{},"ʃən":{},"ˈɪt":{},"ˈɪz":{},"ri":{},"ˈju":{},"tər":{},"ˈhi":{},"ˈwɑz":{},"ˈɑn":{},"ˈwɪð":{},"ˈɛ":{},"vər":{},"dɪ":{},"ˈæz":{},"ɪŋ":{},"bɪ":{},"tə":{},"ˈðɛr":{},"ˈbi":{},"ˈɑr":{},"ər":{},"ti":{},"sə":{},"kən":{},"rə":{},"lə":{},"ni":{},"ˈæt":{},"nə":{},"rɪ":{}},
-		"^":{//Start marker
+		...[{id:"ðə"},{id:"ə"},{id:"ˈtu"},{id:"ˈænd"},{id:"ˈʌv"},{id:"ɪn"},{id:"li"},{id:"ˈðæt"},{id:"ˈaɪ"},{id:"ˈfɔr"},{id:"ʃən"},{id:"ˈɪt"},{id:"ˈɪz"},{id:"ri"},{id:"ˈju"},{id:"tər"},{id:"ˈhi"},{id:"ˈwɑz"},{id:"ˈɑn"},{id:"ˈwɪð"},{id:"ˈɛ"},{id:"vər"},{id:"dɪ"},{id:"ˈæz"},{id:"ɪŋ"},{id:"bɪ"},{id:"tə"},{id:"ˈðɛr"},{id:"ˈbi"},{id:"ˈɑr"},{id:"ər"},{id:"ti"},{id:"sə"},{id:"kən"},{id:"rə"},{id:"lə"},{id:"ni"},{id:"ˈæt"},{id:"nə"},{id:"rɪ"}],
+		{id:"^"//Start marker
 				followers:[]
 			}
-		"hə":{
+		{id:"hə"
 				approx:{
 						"en":"heh",
 						"es":"je"
 					},
 				followers:["ləʊ","zɪ",]
 			},
-		"ləʊ":{
+		{id:"ləʊ"
 				approx:{
 						"en":"low",
 						"es":"lou"
 					}
 			},
-		"zɪ":{
+		{id:"zɪ"
 				approx:{
 						"en":"zi",
 						"es":"zɪ"
 					}
 				followers:["teɪt","teɪ"]
 			},
+		{id:"vi"
+				approx:{
+						en:"vee",
+						es:"vi"
+					},
+				followers:["en","əʊ"]
+			}
 
 	}
-let syllables = Object.keys(syllableData)
+const syllablesById = syllables.reduce(indexBy("id"),{})
 
-let segmentData = {
-		"Hello":{
+const segments = [
+		{id:"Hello",
 				prompt:{
 					es:"Hola",
 					fr:"Bonjour"
 				},
 				syllables:["hə","ləʊ"]
-			}
-		"Hesitate":{
-			prompt:{
-				es:""
 			},
+		{id:"Heavy",
+			prompt:{
+				es:"Pesado",
+				fr:"Lourd"
+			},
+			syllables:["he","vi"]
 		}
-	}
-
+	]
+const segmentsById = segments.reduce(indexBy("id"),{})
 
 setup()
 function setup(){
@@ -117,6 +129,7 @@ function setup(){
 				let track = scene.track = new Container()
 					track.x = 30
 					track.y = 60
+					track.height = 640
 					scene.addChild(track)
 				let goal = scene.goal = new Container ()
 					goal.x = 30
@@ -127,25 +140,106 @@ function setup(){
 
 		//TODO make left-handed version with 123X
 		let enter = keyListeners(13)
+		let esc = keyListeners(27)
 		let key1 = keyListeners(77) //m
 		let key2 = keyListeners(56) //8
 		let key3 = keyListeners(57) //9
 		let key4 = keyListeners(48) //0
 
 		enter.press = () => state.scene=='intro' && battleStart()
+		esc.press = () => state.scene=='battle' && state.scene='intro'
 		//key1.press = () =>
 
 		document.body.appendChild(app.view)
 	}
 
-function battleStart (){
-		let rounds : [
-			{position:15,options:[{script:"He-",phon:"Je",state:"tgt"},{script:"So-",phon:"So",state:"hid"}]},
-			{position:0,options:[{script:"-rry",phon:"rri",state:"hid"},{script:"-llo",phon:"lou",state:"tgt"}]}
-		]
+function battleStart (rand){
 		state.scene = 'battle'
 		scenes.intro.visible = false
 		scenes.battle.visible = true
+
+		state.battle.segment = segments[parseInt(rand()*segments.length)]
+		state.battle.roundNumber = 0
+		state.battle.queuedRound = generateRound({rand,priorSyllable:"^",tgtSyllable:state.battle.segment.syllables[0]})
+		state.battle.activeRound = undefined
+
+		renderBattle()
+	}
+function battleTick({delta = 0, rand}){
+		if(state.scene!="battle"){return}
+		const battle = state.battle
+		if(battle.queuedRound & !battle.activeRound){
+				battle.activeRound = battle.queuedRound
+				battle.activeRound.progress = 0.0
+				battle.queuedRound = undefined
+				battle.roundNumber++
+				if(battle.segment.syllables[roundNumber]){
+						battle.queuedRound = generateRound({
+								rand,
+								priorSyllable:battle.segment.syllables[battle.roundNumber-1]||"^",
+								tgtSyllable:battle.segment.syllables[battle.roundNumber]
+							})
+					}
+			}
+		if(battle.activeRound){
+				battle.activeRound.progress = min(
+						1.0,
+						battle.activeRound.progress + 1.0 / (1.0/nominalFPS + delta) / roundSpeedInSeconds
+					)
+			}
+		//TODO switch options from MAYBE to NO as they progress
+		renderBattle()
+	}
+function renderBattle(){
+		//Move freshly active rounds to the track
+		if(state.battle.activeRound
+		&& state.battle.activeRound.container
+		&& state.battle.activeRound.container!==scene.battle.track){
+				state.battle.activeRound.container.setParent(scene.battle.track)
+			}
+		//Create freshly queued rounds and add to queue
+		if( state.battle.queuedRound
+		&& !state.battle.queuedRound.container){
+				state.battle.queuedRound.container = new Container()
+				let o=-1
+				for(let option of state.battle.queuedRound){
+						o++
+						option.container = new Container()
+						option.container.x = 30 + o * 120
+						option.container.addChild(new Text(
+								option.syllable.approx && option.syllable.approx[state.promptLang]
+								|| option.syllable.id
+								,option.state==NO?styleWrong:styleMaybe
+							))
+						state.battle.queuedRound.container.addChild(option.container)
+					}
+				scene.battle.queue.addChild(state.battle.queuedRound.container)
+			}
+		// Progress active round down the track
+		if(state.battle.activeRound.container){
+				state.battle.activeRound.container.y = state.battle.activeRound.progress
+						* (scene.battle.height-state.battle.activeRound.container.height)
+			}
+		//TODO restyle options by state
+	}
+function generateRound({ rand, priorSyllable, tgtSyllable, limit = 4 }){
+		let ret = [{
+				syllable: tgtSyllable
+				state: YES,
+				optOrder:rand()
+			}]
+		for(let l=0;l<limit-1;l++){
+				let anyNewSyll = syllables.filter(s=>!ret.some(r=>r.syllable===s)).rand(rand)
+				let folNewSyll = tgtSyllable.followers.filter(fId => !ret.some(r=>r.syllable.id==fId)).rand(rand)
+				let randNewSyll = [anyNewSyll,folNewSyll].filter(Boolean).rand(rand)
+				if(randNewSyll){ret.push({
+						syllable:randNewSyll
+						state: MAYBE,
+						optOrder:rand()
+					})}
+			}
+		return ret.sort((a,b)=>a.optOrder-b.optOrder)
+	}
 
 		let roundCo = new  Container()
 		let r
@@ -174,7 +268,7 @@ function battleStart (){
 			}
 	}
 function gameLoop(delta){
-
+		if(state.scene = "battle"){battleTick({rand:Math.random, delta})
 
 	}
 
@@ -210,6 +304,9 @@ function keyListeners(keyCode) { //As suggested in https://github.com/kittykatat
 		window.addEventListener("keyup", key.upHandler.bind(key), false)
 		return key
 	}
+
+function indexBy(key){return (idx,o)=>({ ...idx, [o[key]]:o })}
+function min(a,b){return a<b?a:b}
 </script>
 </body>
 </html>
